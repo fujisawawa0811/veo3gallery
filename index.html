@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>White Cube Variations – Video Gallery</title>
+  <meta name="description" content="白い背景に置かれた白いキューブが様々な質感で変化する実験映像ギャラリー。" />
+  <style>
+    :root { --ring: rgba(0,0,0,.10); --play:#ef4444; --muted:#6b7280; --chip:#f3f4f6; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; background:#fff; color:#111; }
+
+    header { position:sticky; top:0; z-index:20; backdrop-filter:saturate(1.1) blur(6px); background:rgba(255,255,255,.96); border-bottom:1px solid var(--ring); }
+    .wrap { max-width:1200px; margin:0 auto; padding:12px 20px; }
+    h1 { margin:0; font-size:22px; }
+
+    /* toolbar */
+    .toolbar { display:grid; grid-template-columns: 1fr auto auto; gap:10px; align-items:center; margin-top:8px; }
+    .search { position:relative; }
+    .search input { width:100%; padding:10px 12px 10px 36px; border:1px solid var(--ring); border-radius:10px; font-size:14px; }
+    .search svg { position:absolute; left:10px; top:50%; transform:translateY(-50%); width:18px; height:18px; opacity:.6; }
+    select, button, .chip { font-size:13px; }
+    select { padding:10px 12px; border:1px solid var(--ring); border-radius:10px; background:#fff; }
+    .reset { padding:10px 12px; border:1px solid var(--ring); border-radius:10px; background:#fff; }
+
+    .filters { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
+    .chip { padding:6px 10px; border:1px solid var(--ring); border-radius:999px; background:var(--chip); cursor:pointer; user-select:none; }
+    .chip[aria-pressed="true"] { background:#111; color:#fff; border-color:#111; }
+
+    .count { color:var(--muted); font-size:12px; margin-top:6px; }
+
+    main { max-width:1200px; margin:0 auto; padding:20px; display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:20px; }
+    .card { border:1px solid var(--ring); border-radius:12px; overflow:hidden; background:#fafafa; display:flex; flex-direction:column; }
+
+    .placeholder { position:relative; aspect-ratio:16/9; display:flex; align-items:center; justify-content:center; background: conic-gradient(from 200deg at 50% 50%, #f6f7fb, #eef1f6); cursor:pointer; overflow:hidden; border:0; width:100%; }
+    .placeholder:focus-visible { outline:3px solid #2563eb; outline-offset:2px; }
+    .thumbimg { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:center; filter:saturate(1.05); }
+    .play { position:relative; z-index:1; width:72px; height:72px; border-radius:50%; background:#fff; border:1px solid var(--ring); display:grid; place-items:center; box-shadow:0 6px 24px rgba(0,0,0,.08); }
+    .play svg { width:28px; height:28px; fill: var(--play); margin-left:2px; }
+
+    iframe, video { width:100%; aspect-ratio:16/9; border:0; display:block; background:#000; }
+
+    .meta { padding:12px; display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+    .meta h3 { margin:0 0 4px; font-size:16px; }
+    .meta p { margin:0; font-size:13px; color:#555; }
+    .tags { margin-top:6px; display:flex; gap:6px; flex-wrap:wrap; }
+    .tag { font-size:11px; padding:4px 8px; border-radius:999px; background:#fff; border:1px dashed var(--ring); color:#555; }
+    .openlink a { font-size:12px; color:#2563eb; text-decoration:none; border:1px solid var(--ring); padding:6px 10px; border-radius:999px; background:#fff; white-space:nowrap; }
+    .openlink a:hover { background:#f3f4f6; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <h1>White Cube Variations</h1>
+      <div class="toolbar">
+        <div class="search">
+          <input id="q" type="search" placeholder="検索（タイトル・説明・タグ）" aria-label="検索" />
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"></path></svg>
+        </div>
+        <select id="sort" aria-label="並び替え">
+          <option value="az">A→Z（タイトル）</option>
+          <option value="za">Z→A（タイトル）</option>
+        </select>
+        <button id="reset" class="reset" type="button">絞り込みをクリア</button>
+      </div>
+      <div id="chips" class="filters" aria-label="カテゴリフィルタ"></div>
+      <div id="count" class="count"></div>
+    </div>
+  </header>
+
+  <main id="grid"></main>
+
+  <script>
+    // ▼ データ（cats = タグ）。必要に応じて増減OK
+    const items = [
+      {title:'Glass – シャッター', desc:'白いガラスのキューブが砕ける。', id:'FqACqhSCTJQ', cats:['material','hard','fragile']},
+      {title:'Crystal/Ice – スパーク', desc:'氷や水晶のように砕け散る。', id:'l13JdgWZj08', cats:['material','hard','cold']},
+      {title:'Snow Crystals – 粉雪', desc:'粉雪の結晶へと散る。', id:'rLjvPcqU_U8', cats:['material','powder','soft']},
+      {title:'Metal – デント&崩壊', desc:'金属的な白キューブが歪み崩れる。', id:'BOHyrm5qkEI', cats:['material','hard','heavy']},
+      {title:'Styrofoam – 粒状崩壊', desc:'発泡スチロール片に分かれて散る。', id:'aq1guI-PJnE', cats:['material','light','granular']},
+      {title:'Clay/Chalk – クランブル', desc:'チョークのように粉々に崩れる。', id:'doSh0aaCYeE', cats:['material','powder','brittle']},
+      {title:'Powder/Dust – ダスト', desc:'粉塵の雲となって散る。', id:'hhBml0tiCfM', cats:['concept','powder']},
+      {title:'Sand – 砂丘', desc:'さらさらの砂山へと崩れる。', id:'OfJ_itWs1k', cats:['material','granular']},
+      {title:'Water – スプラッシュ', desc:'透明な水しぶきに変わる。', id:'MryMyZt3Eyg', cats:['material','liquid']},
+      {title:'Milk – スプラッシュ', desc:'白いミルクのように広がる。', id:'Yp3Xwsedg-I', cats:['material','liquid','white']},
+      {title:'Liquid Metal – メルト', desc:'液体金属となって広がる。', id:'UaqkNizVXnE', cats:['material','liquid','metal']},
+      {title:'Jelly – ゼリー崩れ', desc:'ゼリー状に潰れて広がる。', id:'XXXXXXXXXXX', cats:['material','soft','gel']},
+      {title:'Molten – 融解', desc:'内部が割れ溶融して広がる。', id:'XXXXXXXXXXX', cats:['material','hot','liquid']},
+      {title:'Smoke – パフ', desc:'白い煙となって消える。', id:'XXXXXXXXXXX', cats:['concept','gas']},
+      {title:'Bubbles – 泡', desc:'泡になって弾け消える。', id:'XXXXXXXXXXX', cats:['concept','liquid','soft']},
+      {title:'Threads – ほどけ', desc:'糸状にほどけて広がる。', id:'XXXXXXXXXXX', cats:['concept','stringy']},
+      {title:'Petals – 花びら', desc:'花びらとなって舞い散る。', id:'XXXXXXXXXXX', cats:['concept','organic','soft']},
+      {title:'Seeds – 種子散布', desc:'小さな種に分かれて散る。', id:'XXXXXXXXXXX', cats:['concept','organic','granular']},
+      {title:'Light Trails – 残光', desc:'光の残像を残して消える。', id:'XXXXXXXXXXX', cats:['concept','light']},
+      {title:'Pixels – デジタル', desc:'ピクセル片に分解して消える。', id:'XXXXXXXXXXX', cats:['concept','digital']},
+      {title:'Letters – 文字化', desc:'文字へと分解され漂う。', id:'XXXXXXXXXXX', cats:['concept','typography']},
+      {title:'Symbols – 記号化', desc:'幾何学記号に散らばる。', id:'XXXXXXXXXXX', cats:['concept','geometric']},
+      {title:'Sound Waves – 音波', desc:'音波の波紋を残して消える。', id:'XXXXXXXXXXX', cats:['concept','wave']},
+      {title:'Time Shards – 時間の破片', desc:'時間の破片に砕ける。', id:'XXXXXXXXXXX', cats:['concept','surreal']},
+      {title:'Shadow – 影崩壊', desc:'影だけが砕けて消える。', id:'XXXXXXXXXXX', cats:['concept','shadow']},
+      {title:'Confetti – 紙吹雪', desc:'紙吹雪になって舞う。', id:'XXXXXXXXXXX', cats:['concept','paper','playful']},
+      {title:'Vanishing – 虚無', desc:'完全に消えて跡形もない。', id:'XXXXXXXXXXX', cats:['concept','minimal']},
+    ];
+
+    // ▼ 状態
+    const state = { q:'', cats:new Set(), sort:'az' };
+
+    // ▼ 要素参照
+    const grid = document.getElementById('grid');
+    const q = document.getElementById('q');
+    const sort = document.getElementById('sort');
+    const resetBtn = document.getElementById('reset');
+    const chipsEl = document.getElementById('chips');
+    const countEl = document.getElementById('count');
+
+    // ▼ ユニークカテゴリを生成
+    const allCats = Array.from(new Set(items.flatMap(i => i.cats))).sort();
+
+    // ▼ チップ描画
+    allCats.forEach(cat => {
+      const chip = document.createElement('button');
+      chip.className = 'chip';
+      chip.type = 'button';
+      chip.textContent = cat;
+      chip.setAttribute('aria-pressed','false');
+      chip.addEventListener('click', () => {
+        const pressed = chip.getAttribute('aria-pressed') === 'true';
+        chip.setAttribute('aria-pressed', String(!pressed));
+        if (pressed) state.cats.delete(cat); else state.cats.add(cat);
+        render();
+      });
+      chipsEl.appendChild(chip);
+    });
+
+    // ▼ イベント
+    q.addEventListener('input', debounce(() => { state.q = q.value.trim().toLowerCase(); render(); }, 120));
+    sort.addEventListener('change', () => { state.sort = sort.value; render(); });
+    resetBtn.addEventListener('click', () => {
+      state.q=''; state.cats.clear(); state.sort='az';
+      q.value=''; sort.value='az';
+      chipsEl.querySelectorAll('.chip').forEach(c=>c.setAttribute('aria-pressed','false'));
+      render();
+    });
+
+    // ▼ レンダリング
+    function render(){
+      grid.innerHTML='';
+      let list = items.filter(it => {
+        // 検索
+        const hay = (it.title + ' ' + it.desc + ' ' + it.cats.join(' ')).toLowerCase();
+        const matchQ = !state.q || hay.includes(state.q);
+        // カテゴリ
+        const matchCats = state.cats.size===0 || Array.from(state.cats).every(c => it.cats.includes(c));
+        return matchQ && matchCats;
+      });
+
+      // 並び替え
+      list.sort((a,b)=> state.sort==='az' ? a.title.localeCompare(b.title) : b.title.localeCompare(a.title));
+
+      // カウント表示
+      countEl.textContent = `${list.length} / ${items.length} 件 表示`;
+
+      // カード描画
+      for (const {title, desc, id, cats} of list){
+        const card = document.createElement('article');
+        card.className = 'card';
+
+        const ph = document.createElement('button');
+        ph.className = 'placeholder'; ph.type = 'button'; ph.setAttribute('aria-label', `${title} を再生`);
+        const img = document.createElement('img');
+        img.className = 'thumbimg'; img.alt = `${title} のサムネイル`; img.loading = 'lazy';
+        img.referrerPolicy = 'strict-origin-when-cross-origin';
+        img.src = `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
+        img.onerror = ()=> img.remove();
+        ph.appendChild(img);
+        const play = document.createElement('div'); play.className = 'play';
+        play.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>';
+        ph.appendChild(play);
+        ph.addEventListener('click', () => {
+          if (!id || id.includes('X')) return alert('このカードの動画IDを差し替えてください。');
+          const iframe = document.createElement('iframe');
+          iframe.loading = 'eager';
+          iframe.referrerPolicy = 'strict-origin-when-cross-origin';
+          iframe.sandbox = 'allow-scripts allow-same-origin allow-presentation';
+          iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
+          iframe.allowFullscreen = true;
+          iframe.src = `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0`;
+          ph.replaceWith(iframe);
+        });
+
+        const meta = document.createElement('div'); meta.className = 'meta';
+        const left = document.createElement('div');
+        const h = document.createElement('h3'); h.textContent = title;
+        const p = document.createElement('p'); p.textContent = desc;
+        const tags = document.createElement('div'); tags.className = 'tags';
+        cats.forEach(t=>{ const s=document.createElement('span'); s.className='tag'; s.textContent=t; tags.appendChild(s); });
+        left.appendChild(h); left.appendChild(p); left.appendChild(tags);
+
+        const right = document.createElement('div'); right.className = 'openlink';
+        const a = document.createElement('a'); a.textContent = 'YouTubeで開く';
+        a.href = `https://youtu.be/${id}`; a.target = '_blank'; a.rel = 'noopener noreferrer';
+        right.appendChild(a);
+
+        meta.appendChild(left); meta.appendChild(right);
+
+        card.appendChild(ph); card.appendChild(meta);
+        grid.appendChild(card);
+      }
+    }
+
+    function debounce(fn, ms){ let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn.apply(this,args), ms); }; }
+
+    // 初回描画
+    render();
+  </script>
+</body>
+</html>
